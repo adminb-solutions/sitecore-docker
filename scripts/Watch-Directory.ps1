@@ -82,7 +82,7 @@ finally
     # Cleanup
     Get-EventSubscriber -SourceIdentifier "FileDeleted" | Unregister-Event
 
-    if ($watcher -ne $null)
+    if ($null -ne $watcher)
     {
         $watcher.Dispose()
         $watcher = $null

@@ -7,7 +7,7 @@ ARG CONFIG_PACKAGE
 
 ADD files /Files
 
-RUN Expand-Archive -Path /Files/$Env:CONFIG_PACKAGE -DestinationPath /Files/Config 
+RUN Expand-Archive -Path /Files/$Env:CONFIG_PACKAGE -DestinationPath /Files/Config
 
 
 # Stage 1: create actual image
@@ -22,6 +22,19 @@ ARG SQL_SERVER="mssql"
 ARG SITE_NAME="sitecore"
 ARG SOLR_PORT=8983
 ARG SITECORE_PACKAGE
+
+# Install chocolatey
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+# Install WebDeploy
+RUN choco install -y --params="Quiet" --limit-output webdeploy
+
+# Install IIS URL Rewrite
+RUN choco install -y --params="Quiet" --limit-output UrlRewrite
+
+# Install VS Remote Tools for debugging and vc redistributable runtime
+RUN choco install -y --params="Quiet" --limit-output vcredist2017
+RUN choco install -y --params="Quiet" --limit-output visualstudio2017-remotetools
 
 COPY files/*.pfx /Files/
 COPY files/license.xml /Files/
@@ -42,21 +55,6 @@ RUN /Scripts/Import-Certificate.ps1 -certificateFile $Env:SITECORE_CERT_PATH -se
 # Import XConnect certificate
 RUN /Scripts/Import-Certificate.ps1 -certificateFile $Env:XCONNECT_CERT_PATH -secret 'secret' -storeName 'My' -storeLocation 'LocalMachine'
 RUN /Scripts/Import-Certificate.ps1 -certificateFile $Env:SITECORE_CERT_PATH -secret 'secret' -storeName 'My' -storeLocation 'LocalMachine'
-
-# Install WebDeploy
-ENV WEBDEPLOY_MSI="webdeploy.msi"
-ADD http://download.microsoft.com/download/0/1/D/01DC28EA-638C-4A22-A57B-4CEF97755C6C/WebDeploy_amd64_en-US.msi ${WEBDEPLOY_MSI}
-RUN Start-Process msiexec.exe -ArgumentList '/i', $Env:WEBDEPLOY_MSI, '/quiet', '/norestart' -NoNewWindow -Wait
-
-# Install IIS URL Rewrite
-ENV URLREWRITE_MSI="urlrewrite.msi"
-ADD http://download.microsoft.com/download/D/D/E/DDE57C26-C62C-4C59-A1BB-31D58B36ADA2/rewrite_amd64_en-US.msi ${URLREWRITE_MSI}
-RUN Start-Process msiexec.exe -ArgumentList '/i', $Env:URLREWRITE_MSI, '/quiet', '/norestart' -NoNewWindow -Wait
-
-# Install chocolatey
-RUN Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-
-RUN choco install -y --params="Quiet" vcredist2015
 
 # Install SIF
 RUN /Scripts/Install-SIF.ps1
@@ -90,15 +88,15 @@ RUN $solrUrl = 'https://solr:{0}/solr' -f $Env:SOLR_PORT; `
     -SqlProcessingTasksUser $Env:SQL_USER `
     -SqlProcessingTasksPassword $Env:SQL_SA_PASSWORD `
     -SqlReferenceDataUser $Env:SQL_USER `
-    -SqlReferenceDataPassword $Env:SQL_SA_PASSWORD ` 
+    -SqlReferenceDataPassword $Env:SQL_SA_PASSWORD `
 	-SqlExmMasterUser "sa" `
     -SqlExmMasterPassword $Env:SQL_SA_PASSWORD `
 	-SqlMessagingUser "sa" `
-    -SqlMessagingPassword $Env:SQL_SA_PASSWORD `	
+    -SqlMessagingPassword $Env:SQL_SA_PASSWORD `
     -SqlProcessingPoolsUser $Env:SQL_USER `
     -SqlProcessingPoolsPassword $Env:SQL_SA_PASSWORD `
     -SqlReportingUser $Env:SQL_USER `
-    -SqlReportingPassword $Env:SQL_SA_PASSWORD `  
+    -SqlReportingPassword $Env:SQL_SA_PASSWORD `
     -SqlMarketingAutomationUser $Env:SQL_USER `
     -SqlMarketingAutomationPassword $Env:SQL_SA_PASSWORD `
     -SolrUrl $solrUrl `
@@ -121,7 +119,7 @@ RUN Copy-Item /Config/*.* c:\inetpub\wwwroot\$Env:SITE_NAME\App_Config\Include
 # enable live-mode
 RUN mv C:\inetpub\wwwroot\sitecore\App_Config\Include\Examples\LiveMode.config.example C:\inetpub\wwwroot\sitecore\App_Config\Include\Examples\LiveMode.config
 
-# Add Host	
+# Add Host
 RUN /Scripts/Add-Hosts.ps1
 
 # Start site

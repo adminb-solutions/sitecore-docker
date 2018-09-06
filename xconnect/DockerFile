@@ -9,7 +9,7 @@ SHELL ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop';
 
 ADD files/$CONFIG_PACKAGE /Files/
 
-RUN Expand-Archive -Path /Files/$Env:CONFIG_PACKAGE -DestinationPath /Files/Config 
+RUN Expand-Archive -Path /Files/$Env:CONFIG_PACKAGE -DestinationPath /Files/Config
 
 
 # Stage 1: create actual image
@@ -23,7 +23,19 @@ ARG SOLR_CORE_PREFIX="xp0"
 ARG SOLR_PORT="8983"
 ARG XCONNECT_PACKAGE
 
-SHELL ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop';"] 
+SHELL ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop';"]
+
+# Install chocolatey
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+# Install WebDeploy
+RUN choco install -y --params="Quiet" --limit-output --no-progress webdeploy
+
+# Install IIS URL Rewrite
+RUN choco install -y --params="Quiet" --limit-output --no-progress UrlRewrite
+
+# Install VS Remote Tools for debugging
+RUN choco install -y --params="Quiet" --limit-output --no-progress visualstudio2017-remotetools
 
 COPY files/license.xml /Files/
 COPY files/$XCONNECT_PACKAGE /Files/
@@ -42,16 +54,6 @@ RUN /Scripts/Import-Certificate.ps1 -certificateFile $Env:XCONNECT_CERT_PATH -se
 RUN /Scripts/Import-Certificate.ps1 -certificateFile $Env:XCONNECT_CERT_PATH -secret 'secret' -storeName 'My' -storeLocation 'LocalMachine'
 
 RUN /Scripts/Install-SIF.ps1
-
-# Install WebDeploy
-ENV WEBDEPLOY_MSI="webdeploy.msi"
-ADD http://download.microsoft.com/download/0/1/D/01DC28EA-638C-4A22-A57B-4CEF97755C6C/WebDeploy_amd64_en-US.msi ${WEBDEPLOY_MSI}
-RUN Start-Process msiexec.exe -ArgumentList '/i', $Env:WEBDEPLOY_MSI, '/quiet', '/norestart' -NoNewWindow -Wait
-
-# Install IIS URL Rewrite
-ENV URLREWRITE_MSI="urlrewrite.msi"
-ADD http://download.microsoft.com/download/D/D/E/DDE57C26-C62C-4C59-A1BB-31D58B36ADA2/rewrite_amd64_en-US.msi ${URLREWRITE_MSI}
-RUN Start-Process msiexec.exe -ArgumentList '/i', $Env:URLREWRITE_MSI, '/quiet', '/norestart' -NoNewWindow -Wait
 
 RUN Remove-Website -Name 'Default Web Site'
 
@@ -83,18 +85,19 @@ RUN $solrUrl = 'https://solr:{0}/solr' -f $Env:SOLR_PORT; `
 	-SqlMessagingUser "sa" `
     -SqlMessagingPassword $Env:SQL_SA_PASSWORD `
     -SqlMarketingAutomationUser "sa" `
-    -SqlMarketingAutomationPassword $Env:SQL_SA_PASSWORD `    
+    -SqlMarketingAutomationPassword $Env:SQL_SA_PASSWORD `
     -SolrCorePrefix $Env:SOLR_CORE_PREFIX `
     -SolrURL $solrUrl `
     -Skip "CleanShards", "CreateShards", "CreateShardApplicationDatabaseServerLoginSqlCmd", "CreateShardManagerApplicationDatabaseUserSqlCmd", "CreateShard0ApplicationDatabaseUserSqlCmd", "CreateShard1ApplicationDatabaseUserSqlCmd", "ConfigureSolrSchemas"
 
 RUN Remove-Item -Recurse -Force -Path c:\inetpub\wwwroot\xconnect\App_Data\logs
-# Add Host	
+
+# Add Host entries for Docker services
 RUN /Scripts/Add-Hosts.ps1
 
-RUN Start-WebAppPool -Name $Env:SITE_NAME 
+RUN Start-WebAppPool -Name $Env:SITE_NAME
 RUN Start-Website -Name $Env:SITE_NAME
 
 EXPOSE 443
 
-ENTRYPOINT C:\ServiceMonitor.exe w3svc
+ENTRYPOINT ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'Continue'; $verbosePreference='Continue';", "C:\\Scripts\\Start-RemoteDebug.ps1;", "C:\\ServiceMonitor.exe", "w3svc"]
