@@ -5,7 +5,7 @@ FROM microsoft/aspnet:4.7.2-windowsservercore-1803 AS prepare
 
 ARG CONFIG_PACKAGE
 
-ADD files /Files
+COPY files /Files
 
 RUN Expand-Archive -Path /Files/$Env:CONFIG_PACKAGE -DestinationPath /Files/Config
 
@@ -41,7 +41,7 @@ COPY files/license.xml /Files/
 COPY files/$SITECORE_PACKAGE /Files/
 COPY --from=prepare /Files/Config /Files/Config/
 COPY files/docker-entrypoint.ps1 /temp/
-ADD scripts /Scripts
+COPY scripts /Scripts
 
 ENV XCONNECT_CERT_PATH "c:\\Files\\xConnect.client.pfx"
 ENV SOLR_CERT_PATH "c:\\Files\\solr.pfx"
@@ -126,4 +126,4 @@ RUN /Scripts/Add-Hosts.ps1
 RUN Start-WebAppPool -Name $Env:SITE_NAME; `
     Start-Website -Name $Env:SITE_NAME
 
-ENTRYPOINT ["powershell.exe","C:/temp/docker-entrypoint.ps1"]
+ENTRYPOINT ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'Continue'; $verbosePreference='Continue';", "C:/temp/docker-entrypoint.ps1" ]
