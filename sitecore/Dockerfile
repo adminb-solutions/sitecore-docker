@@ -1,7 +1,7 @@
 # escape=`
 
 # Stage 0: prepare files
-FROM microsoft/aspnet:4.7.1-windowsservercore-1709 AS prepare
+FROM microsoft/aspnet:4.7.2-windowsservercore-1803 AS prepare
 
 ARG CONFIG_PACKAGE
 
@@ -11,7 +11,7 @@ RUN Expand-Archive -Path /Files/$Env:CONFIG_PACKAGE -DestinationPath /Files/Conf
 
 
 # Stage 1: create actual image
-FROM microsoft/aspnet:4.7.1-windowsservercore-1709
+FROM microsoft/aspnet:4.7.2-windowsservercore-1803
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
@@ -30,7 +30,7 @@ COPY --from=prepare /Files/Config /Files/Config/
 COPY files/docker-entrypoint.ps1 /temp/
 ADD scripts /Scripts
 
-ENV XCONNECT_CERT_PATH "c:\\Files\\xConnect.pfx"
+ENV XCONNECT_CERT_PATH "c:\\Files\\xConnect.client.pfx"
 ENV SOLR_CERT_PATH "c:\\Files\\solr.pfx"
 ENV SITECORE_CERT_PATH "c:\\Files\\sitecore.pfx"
 

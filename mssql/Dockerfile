@@ -1,7 +1,7 @@
 # escape=`
 
 # Stage 0: prepare files
-FROM microsoft/aspnet:4.7.1-windowsservercore-1709 AS prepare
+FROM microsoft/aspnet:4.7.2-windowsservercore-1803 AS prepare
 
 ARG SITECORE_PACKAGE
 ARG XCONNECT_PACKAGE
@@ -9,6 +9,22 @@ ARG XCONNECT_PACKAGE
 SHELL ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop';"]
 
 ADD files/ /Files/
+
+# TODO only extract the required files
+# Add-Type -Assembly System.IO.Compression.FileSystem
+
+# #extract list entries for dir myzipdir/c/ into myzipdir.zip
+# $zip = [IO.Compression.ZipFile]::OpenRead("c:\temp\myzipdir.zip")
+# $entries=$zip.Entries | where {$_.FullName -like 'myzipdir/c/*' -and $_.FullName -ne 'myzipdir/c/'} 
+
+# #create dir for result of extraction
+# New-Item -ItemType Directory -Path "c:\temp\c" -Force
+
+# #extraction
+# $entries | foreach {[IO.Compression.ZipFileExtensions]::ExtractToFile( $_, "c:\temp\c\" + $_.Name) }
+
+# #free object
+# $zip.Dispose()
 
 RUN Expand-Archive -Path /Files/$Env:SITECORE_PACKAGE -DestinationPath /Files/Sitecore 
 RUN Expand-Archive -Path /Files/$Env:XCONNECT_PACKAGE -DestinationPath /Files/Xconnect 
@@ -59,5 +75,3 @@ RUN $DB_NAME='{0}_Xdb.Collection.ShardMapManager' -f $Env:DB_PREFIX; `
 RUN $sqlcmd = 'UPDATE [{0}_Xdb.Collection.ShardMapManager].[__ShardManagement].[ShardsGlobal] SET ServerName = ''{1}''' -f $Env:DB_PREFIX, $Env:HOST_NAME; `
     sqlcmd -Q $sqlcmd; `
     sqlcmd -Q \"EXEC sp_MSforeachdb 'IF charindex(''Sitecore'', ''?'' ) = 1 BEGIN EXEC [?]..sp_changedbowner ''sa'' END'\" 
-
-RUN Add-WindowsFeature Web-Server
