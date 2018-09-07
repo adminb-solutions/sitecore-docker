@@ -120,7 +120,11 @@ RUN Copy-Item /Config/*.* c:\inetpub\wwwroot\$Env:SITE_NAME\App_Config\Include
 RUN mv C:\inetpub\wwwroot\sitecore\App_Config\Include\Examples\LiveMode.config.example C:\inetpub\wwwroot\sitecore\App_Config\Include\Examples\LiveMode.config
 
 # Add Host
-RUN /Scripts/Add-Hosts.ps1
+RUN /Scripts/Add-Hosts.ps1;
+
+# Start remote debugging service
+RUN Set-Service -Name msvsmon150 -StartupType Automatic; `
+    Start-Service -Name msvsmon150
 
 # Start site
 RUN Start-WebAppPool -Name $Env:SITE_NAME; `

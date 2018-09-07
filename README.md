@@ -48,6 +48,12 @@ As final step build all Solr indexes (populate and re-build indexes) from Siteco
 PS> docker commit sitecore-docker_solr_1 sitecore-docker_solr:latest
 ```
 
+Remote debugging is installed as a servie with automatic start. It can be stop doing
+
+```bash
+docker-compose exec sitecore powershell Stop-Service msvsmon150
+```
+
 # Run
 Docker compose is used to start up all required services.
 

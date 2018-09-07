@@ -96,9 +96,13 @@ RUN Remove-Item -Recurse -Force -Path c:\inetpub\wwwroot\xconnect\App_Data\logs
 # Add Host entries for Docker services
 RUN /Scripts/Add-Hosts.ps1
 
+# Start remote debugging service
+RUN Set-Service -Name msvsmon150 -StartupType Automatic; `
+    Start-Service -Name msvsmon150
+
 RUN Start-WebAppPool -Name $Env:SITE_NAME
 RUN Start-Website -Name $Env:SITE_NAME
 
 EXPOSE 443
 
-ENTRYPOINT ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'Continue'; $verbosePreference='Continue';", "C:\\Scripts\\Start-RemoteDebug.ps1;", "C:\\ServiceMonitor.exe", "w3svc"]
+ENTRYPOINT ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'Continue'; $verbosePreference='Continue';", "C:\\ServiceMonitor.exe", "w3svc"]
