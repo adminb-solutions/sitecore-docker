@@ -19,7 +19,7 @@ function setHostEntries([hashtable] $entries) {
                     break
                 }
             }
-            if($match -eq $NULL) {
+            if($NULL -eq $match) {
                 $newLines += $line
             } else {
                 $entries.Remove($match)
