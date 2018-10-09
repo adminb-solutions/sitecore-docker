@@ -122,6 +122,10 @@ COPY config/* /inetpub/wwwroot/${SITE_NAME}/App_Config/Include/
 # enable live-mode
 RUN mv C:\inetpub\wwwroot\sitecore\App_Config\Include\Examples\LiveMode.config.example C:\inetpub\wwwroot\sitecore\App_Config\Include\Examples\LiveMode.config
 
+# copy sitecore rocks files
+COPY files/sitecore-rocks/WebService/* /inetpub/wwwroot/sitecore/sitecore/shell/WebService/
+COPY files/sitecore-rocks/*.dll /inetpub/wwwroot/sitecore/bin/
+
 # Add Host
 COPY /Scripts/Add-Hosts.ps1 /Scripts/
 RUN /Scripts/Add-Hosts.ps1

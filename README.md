@@ -7,7 +7,6 @@ Hopefully this will help you to get up and running with Sitecore and Docker. By 
 # Requirements
 - Windows 10 update 1803 (with Hyper-V enabled)
 - Docker for Windows (version 1712 or better): https://docs.docker.com/docker-for-windows/
-- Visual Studio 15.5.3
 - Sitecore installation files
 
 # Build
