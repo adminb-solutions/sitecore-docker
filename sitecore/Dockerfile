@@ -5,9 +5,9 @@ FROM microsoft/aspnet:4.7.2-windowsservercore-1803 AS prepare
 
 ARG CONFIG_PACKAGE
 
-COPY files /Files
+COPY files/${CONFIG_PACKAGE} /Temp/
 
-RUN Expand-Archive -Path /Files/$Env:CONFIG_PACKAGE -DestinationPath /Files/Config
+RUN Expand-Archive -Path /Temp/$Env:CONFIG_PACKAGE -DestinationPath /Files/Config
 
 
 # Stage 1: create actual image
@@ -19,7 +19,7 @@ ARG SQL_USER="sa"
 ARG SQL_SA_PASSWORD
 ARG SQL_DB_PREFIX
 ARG SQL_SERVER="mssql"
-ARG SITE_NAME="sitecore"
+ARG SITE_NAME=${SITECORE_SITE_NAME}
 ARG SOLR_PORT=8983
 ARG SITECORE_PACKAGE
 
@@ -36,12 +36,17 @@ RUN choco install -y --params="Quiet" --limit-output UrlRewrite
 RUN choco install -y --params="Quiet" --limit-output vcredist2017
 RUN choco install -y --params="Quiet" --limit-output visualstudio2017-remotetools
 
-COPY files/*.pfx /Files/
-COPY files/license.xml /Files/
-COPY files/$SITECORE_PACKAGE /Files/
-COPY --from=prepare /Files/Config /Files/Config/
+# Start remote debugging service
+RUN Set-Service -Name msvsmon150 -StartupType Automatic; `
+    Start-Service -Name msvsmon150
+
+# Copy early on any files that don't change
+COPY files/*.pfx files/license.xml files/$SITECORE_PACKAGE /Files/
 COPY files/docker-entrypoint.ps1 /temp/
-COPY scripts /Scripts
+COPY --from=prepare /Files/Config /Files/Config/
+COPY scripts/Install-SIF.ps1 scripts/Import-Certificate.ps1 /Scripts/
+
+# Add certificates
 
 ENV XCONNECT_CERT_PATH "c:\\Files\\xConnect.client.pfx"
 ENV SOLR_CERT_PATH "c:\\Files\\solr.pfx"
@@ -102,9 +107,8 @@ RUN $solrUrl = 'https://solr:{0}/solr' -f $Env:SOLR_PORT; `
     -SolrUrl $solrUrl `
     -XConnectCert "xConnect.client" `
     -XConnectCollectionService "https://xconnect" `
-    -Skip "UpdateSolrSchema"
-
-RUN Remove-Item -Recurse -Force -Path "c:\inetpub\wwwroot\$Env:SITE_NAME\App_Data\logs"
+    -Skip "UpdateSolrSchema"; `
+    Remove-Item -Recurse -Force -Path "c:\inetpub\wwwroot\$Env:SITE_NAME\App_Data\logs"
 
 # get the web binding of the site
 RUN $pwd = ConvertTo-SecureString -String 'secret' -Force -AsPlainText; `
@@ -113,21 +117,24 @@ RUN $pwd = ConvertTo-SecureString -String 'secret' -Force -AsPlainText; `
     $binding = Get-WebBinding -Name $Env:SITE_NAME -Protocol "https"; `
     $binding.AddSslCertificate($PFXCert.EndEntityCertificates.ThumbPrint, 'my')
 
-ADD config /Config
-RUN Copy-Item /Config/*.* c:\inetpub\wwwroot\$Env:SITE_NAME\App_Config\Include
+COPY config/* /inetpub/wwwroot/${SITE_NAME}/App_Config/Include/
 
 # enable live-mode
 RUN mv C:\inetpub\wwwroot\sitecore\App_Config\Include\Examples\LiveMode.config.example C:\inetpub\wwwroot\sitecore\App_Config\Include\Examples\LiveMode.config
 
 # Add Host
-RUN /Scripts/Add-Hosts.ps1;
+COPY /Scripts/Add-Hosts.ps1 /Scripts/
+RUN /Scripts/Add-Hosts.ps1
 
-# Start remote debugging service
-RUN Set-Service -Name msvsmon150 -StartupType Automatic; `
-    Start-Service -Name msvsmon150
+
+RUN Add-LocalGroupMember -Group 'Performance Monitor Users' -Member \"IIS APPPOOL\$Env:SITE_NAME\"
 
 # Start site
+
 RUN Start-WebAppPool -Name $Env:SITE_NAME; `
     Start-Website -Name $Env:SITE_NAME
+
+
+COPY scripts/Watch-Directory.ps1 /Scripts/
 
 ENTRYPOINT ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'Continue'; $verbosePreference='Continue';", "C:/temp/docker-entrypoint.ps1" ]

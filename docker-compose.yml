@@ -1,4 +1,4 @@
-version: '2.2'
+version: '2.3'
 
 services:
  mssql:
@@ -30,6 +30,7 @@ services:
       SOLR_PORT: ${SOLR_PORT}
       SITECORE_PACKAGE: ${SITECORE_PACKAGE}
       CONFIG_PACKAGE: ${CONFIG_PACKAGE}
+
   volumes:
     - .\logs\sitecore:c:\inetpub\wwwroot\${SITECORE_SITE_NAME}\App_Data\logs
     - .\wwwroot\sitecore:C:\Workspace
